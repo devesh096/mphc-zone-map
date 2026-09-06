@@ -120,7 +120,22 @@ function render(){
 }
 ['fZone','fCat','fSort'].forEach(id=>document.getElementById(id).addEventListener('change',render));
 document.getElementById('fQ').addEventListener('input',render);
-fetch('vacancies.json').then(r=>r.json()).then(d=>{VAC=d; render();});
+const DATA_URLS = [
+  'vacancies.json',
+  'https://cdn.jsdelivr.net/gh/devesh096/mphc-zone-map@main/vacancies.json',
+  'https://raw.githubusercontent.com/devesh096/mphc-zone-map/main/vacancies.json'
+];
+(async function loadVac(){
+  for (const u of DATA_URLS){
+    try{
+      const r = await fetch(u);
+      if(!r.ok) continue;
+      const d = await r.json();
+      if(Array.isArray(d) && d.length){ VAC=d; render(); return; }
+    }catch(e){}
+  }
+  document.getElementById('list').innerHTML='<p class="note">Could not load vacancy data.</p>';
+})();
 </script>
 </body>
 </html>
