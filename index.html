@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>MPHC Judicial Zones · Courts vacating April 2027</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  :root{--ink:#1b2a32;--muted:#5d6d7e;--paper:#f4efe6;--gwalior:#8e44ad;--indore:#2471a3;--jabalpur:#1e8449;--rewa:#ca6f1e;--card:#fffdf8;--line:#e4d9c7}
+  *{box-sizing:border-box} html,body{margin:0;height:100%;font-family:Georgia,"Noto Serif Devanagari",serif;background:var(--paper);color:var(--ink)}
+  header{padding:14px 20px 10px;border-bottom:1px solid var(--line);background:#fffaf2}
+  header h1{margin:0;font-size:20px} header p{margin:2px 0 0;font-size:12px;color:var(--muted)}
+  .wrap{display:grid;grid-template-columns:minmax(320px,400px) 1fr;height:calc(100% - 64px)}
+  aside{overflow:auto;border-right:1px solid var(--line);background:var(--card);padding:12px 14px 24px}
+  #map{height:100%;background:#dce8de}
+  .legend{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px}
+  .chip{font-size:11px;padding:3px 8px;border-radius:999px;color:#fff;font-family:ui-sans-serif,system-ui,sans-serif}
+  .chip.Gwalior{background:var(--gwalior)} .chip.Indore{background:var(--indore)}
+  .chip.Jabalpur{background:var(--jabalpur)} .chip.Rewa{background:var(--rewa)}
+  .filters{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;font-family:ui-sans-serif,system-ui,sans-serif}
+  .filters input,.filters select{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px}
+  .stat{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0 12px;font-family:ui-sans-serif,system-ui,sans-serif}
+  .stat div{background:#f7f1e6;border:1px solid var(--line);border-radius:8px;padding:6px;text-align:center}
+  .stat b{display:block;font-size:16px} .stat span{font-size:10px;color:var(--muted)}
+  .card{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:0 0 8px;background:#fff;cursor:pointer}
+  .card h3{margin:0 0 2px;font-size:14px}
+  .card .meta{font-size:11px;color:var(--muted);font-family:ui-sans-serif,system-ui,sans-serif;line-height:1.45}
+  .km{display:flex;gap:8px;margin-top:4px;font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px}
+  .km i{font-style:normal;background:#f3ead8;border-radius:4px;padding:1px 6px}
+  .tag{display:inline-block;font-size:10px;padding:1px 6px;border-radius:4px;color:#fff;margin-right:4px;font-family:ui-sans-serif,system-ui,sans-serif}
+  .tag.A{background:#1e8449}.tag.B{background:#2471a3}.tag.C{background:#b7950b}.tag.D{background:#922b21}
+  .note{font-size:11px;color:var(--muted);line-height:1.4;margin-top:10px}
+  @media (max-width:860px){.wrap{grid-template-columns:1fr;grid-template-rows:48vh 1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Madhya Pradesh · Judicial zones & April 2027 vacancies</h1>
+  <p>Transfer Guidelines 2022 Annexure-2 · tenure-due CJ-II courts · aerial km from Mandsaur & Bhopal</p>
+</header>
+<div class="wrap">
+  <aside>
+    <div class="legend">
+      <span class="chip Gwalior">I Gwalior</span>
+      <span class="chip Indore">II Indore</span>
+      <span class="chip Jabalpur">III Jabalpur</span>
+      <span class="chip Rewa">IV Rewa</span>
+    </div>
+    <div class="stat" id="stats"></div>
+    <div class="filters">
+      <select id="fZone"><option value="">All zones</option><option>Gwalior</option><option>Indore</option><option>Jabalpur</option><option>Rewa</option></select>
+      <select id="fCat"><option value="">All categories</option><option>A</option><option>B</option><option>C</option><option>D</option></select>
+      <input id="fQ" placeholder="Search station / officer / district"/>
+      <select id="fSort">
+        <option value="mand">Sort: nearest Mandsaur</option>
+        <option value="bhop">Sort: nearest Bhopal</option>
+        <option value="zone">Sort: zone · district</option>
+        <option value="cat">Sort: category</option>
+      </select>
+    </div>
+    <div id="list"></div>
+    <p class="note">Aerial km, not road km. Tenure projection from official CJ-II gradation list dated 06-09-2026 — not the signed 2027 order.</p>
+  </aside>
+  <div id="map"></div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const ZONE_OF = {Sheopur:'Gwalior',Morena:'Gwalior',Bhind:'Gwalior',Gwalior:'Gwalior',Shivpuri:'Gwalior',Datia:'Gwalior',Guna:'Gwalior',Ashoknagar:'Gwalior',Vidisha:'Gwalior',Tikamgarh:'Gwalior',Niwari:'Gwalior',Neemuch:'Indore',Mandsaur:'Indore',Ratlam:'Indore',Jhabua:'Indore',Alirajpur:'Indore',Barwani:'Indore',Khargone:'Indore',Dhar:'Indore',Ujjain:'Indore',Indore:'Indore',Dewas:'Indore',Shajapur:'Indore',Rajgarh:'Indore',Bhopal:'Indore',Harda:'Indore',Sehore:'Indore',Burhanpur:'Indore',Khandwa:'Indore','Agar Malwa':'Indore',Sagar:'Jabalpur',Raisen:'Jabalpur',Narmadapuram:'Jabalpur',Hoshangabad:'Jabalpur',Betul:'Jabalpur',Chhindwara:'Jabalpur',Seoni:'Jabalpur',Balaghat:'Jabalpur',Damoh:'Jabalpur',Narsinghpur:'Jabalpur',Narsimhapur:'Jabalpur',Katni:'Jabalpur',Jabalpur:'Jabalpur',Mandla:'Jabalpur',Dindori:'Jabalpur',Chhatarpur:'Rewa',Panna:'Rewa',Satna:'Rewa',Rewa:'Rewa',Shahdol:'Rewa',Anuppur:'Rewa',Sidhi:'Rewa',Singrauli:'Rewa',Umaria:'Rewa'};
+const ZONE_COLOR = {Gwalior:'#8e44ad', Indore:'#2471a3', Jabalpur:'#1e8449', Rewa:'#ca6f1e'};
+const CAT_COLOR = {A:'#1e8449', B:'#2471a3', C:'#b7950b', D:'#922b21'};
+const ORIGIN = {Mandsaur:[24.0640,75.0740], Bhopal:[23.2572,77.3983]};
+let VAC = [];
+const map = L.map('map').setView([23.5,78.2], 7);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'&copy; OSM &copy; CARTO',maxZoom:18}).addTo(map);
+const markers = L.layerGroup().addTo(map);
+const markerByKey = {};
+[['Mandsaur', ORIGIN.Mandsaur, '#c0392b'],['Bhopal', ORIGIN.Bhopal, '#1a5276']].forEach(([name,ll,col])=>{
+  L.circleMarker(ll,{radius:8,color:'#fff',weight:2,fillColor:col,fillOpacity:1}).addTo(map).bindTooltip(name+' (reference)');
+});
+fetch('https://cdn.jsdelivr.net/gh/udit-001/india-maps-data@master/geojson/states/madhya-pradesh.geojson').then(r=>r.json()).then(gj=>{
+  const layer = L.geoJSON(gj,{
+    style: f => ({color:'#fff',weight:1,fillColor:ZONE_COLOR[ZONE_OF[f.properties.district]||'Indore']||'#95a5a6',fillOpacity:0.38}),
+    onEachFeature: (f, layer) => layer.bindTooltip(f.properties.district+' · '+(ZONE_OF[f.properties.district]||''), {sticky:true})
+  }).addTo(map);
+  map.fitBounds(layer.getBounds().pad(0.04));
+});
+function stationKey(v){ return (v.district+'|'+v.station).toLowerCase(); }
+function esc(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&','<':'<','>':'>','"':'"',"'":'&#39;'}[c])); }
+function grouped(list){ const m=new Map(); list.forEach(v=>{const k=stationKey(v); if(!m.has(k)) m.set(k,[]); m.get(k).push(v);}); return [...m.values()]; }
+function popupHtml(group){
+  const v=group[0];
+  return `<b>${esc(v.station)}</b> · ${esc(v.district)} · ${esc(v.zone)} zone<div style="margin-top:4px">Aerial: <b>${v.kmMandsaur} km</b> Mandsaur · <b>${v.kmBhopal} km</b> Bhopal</div>` +
+    group.map(x=>`<div style="margin-top:6px;padding-top:6px;border-top:1px solid #eee"><span class="tag ${x.cat}">${x.cat}</span> ${esc(x.post)}<br>${esc(x.officer)} · home ${esc(x.home)} · since ${esc(x.posted)}</div>`).join('');
+}
+function currentFilter(){
+  const z=document.getElementById('fZone').value,c=document.getElementById('fCat').value,q=document.getElementById('fQ').value.trim().toLowerCase();
+  return VAC.filter(v => (!z||v.zone===z)&&(!c||v.cat===c)&&(!q||(v.station+' '+v.district+' '+v.officer+' '+v.post+' '+v.home).toLowerCase().includes(q)));
+}
+function sortList(list){
+  const mode=document.getElementById('fSort').value,arr=list.slice();
+  if(mode==='mand') arr.sort((a,b)=>a.kmMandsaur-b.kmMandsaur);
+  else if(mode==='bhop') arr.sort((a,b)=>a.kmBhopal-b.kmBhopal);
+  else if(mode==='cat') arr.sort((a,b)=>a.cat.localeCompare(b.cat));
+  else arr.sort((a,b)=>a.zone.localeCompare(b.zone)||a.district.localeCompare(b.district));
+  return arr;
+}
+function render(){
+  const list=sortList(currentFilter());
+  const byZ={Gwalior:0,Indore:0,Jabalpur:0,Rewa:0}; list.forEach(v=>{if(byZ[v.zone]!=null) byZ[v.zone]++;});
+  document.getElementById('stats').innerHTML=Object.entries(byZ).map(([z,n])=>`<div><b>${n}</b><span>${z}</span></div>`).join('');
+  markers.clearLayers();
+  grouped(list).forEach(g=>{
+    const v=g[0];
+    const m=L.circleMarker([v.lat,v.lon],{radius:5+Math.min(4,g.length),color:'#fff',weight:1.4,fillColor:CAT_COLOR[v.cat]||'#333',fillOpacity:0.92}).bindPopup(popupHtml(g),{maxWidth:320});
+    m.addTo(markers); markerByKey[stationKey(v)]=m;
+  });
+  const box=document.getElementById('list');
+  box.innerHTML=list.map(v=>`<div class="card" data-key="${esc(stationKey(v))}"><h3>${esc(v.station)} <span class="tag ${v.cat}">${v.cat}</span></h3><div class="meta">${esc(v.post)} · ${esc(v.district)} · ${esc(v.zone)} zone<br>${esc(v.officer)} · home ${esc(v.home)} · ${esc(v.posted)}</div><div class="km"><i>Mandsaur ${v.kmMandsaur} km</i><i>Bhopal ${v.kmBhopal} km</i></div></div>`).join('')||'<p class="note">Loading or no match.</p>';
+  box.querySelectorAll('.card').forEach(el=>el.addEventListener('click',()=>{const m=markerByKey[el.dataset.key]; if(!m) return; map.setView(m.getLatLng(),9); m.openPopup();}));
+}
+['fZone','fCat','fSort'].forEach(id=>document.getElementById(id).addEventListener('change',render));
+document.getElementById('fQ').addEventListener('input',render);
+fetch('vacancies.json').then(r=>r.json()).then(d=>{VAC=d; render();});
+</script>
+</body>
+</html>
